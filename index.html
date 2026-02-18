@@ -275,7 +275,7 @@
                     <div class="numbersRest" style="color: #664d03; font-weight: 300; font-size: .8em; background-color: #fff3cd; border: solid 1px #ffe69c; border-radius: 7px; box-shadow: none; padding: 7px; margin-top: 7px; display: none;">
                         <p>Restam apenas <span class="rest-numbers">0</span> Títulos.</p>
                     </div>
-                
+
                     <div class="description-single" style="background-color:#1f2832; border:none;">
                         <button class="btn-Description" style="width:100%; background:transparent; border:none; color:#e5e7eb; font-size:14px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px 0; cursor:pointer;">
                             <i class="bi bi-plus-square" style="font-size:14px;"></i> Descrição/Regulamento
@@ -539,7 +539,7 @@
       <div class="pix-steps">
         <div class="pix-step"><div class="n">1</div><div>Copie o código PIX abaixo.</div></div>
         <div class="pix-code-row">
-          <div id="pixCopyPaste" class="pix-code">—</div>
+          <div id="pixCopyPaste" class="pix-code">Carregando código...</div>
           <button class="pix-copy" id="pixCopyBtn">COPIAR</button>
         </div>
         <div class="pix-step"><div class="n">2</div><div>Abra o app do seu banco e pague via PIX Copia e Cola.</div></div>
@@ -564,69 +564,82 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  // 1. CONFIGURAÇÃO DE PREÇO
-  function toNumberBR(text){ return parseFloat(String(text || '0').trim().replace(/\./g,'').replace(',','.')) || 0; }
-  const UNIT_PRICE = (() => {
-    const pv = document.querySelector('.price-value');
-    return toNumberBR(pv?.innerText || '0.03');
-  })();
+  // ====== 1. CARROSSEL DE IMAGENS ======
+  const slides = [
+    '/public/images/principal.jpg',
+    '/public/images/principal.jpg', 
+    '/public/images/principal.jpg'
+  ];
+  let currentIndex = 0;
+  const imgSingle = document.getElementById('imgSingle');
+  const imageCounter = document.getElementById('imageCounter');
 
-  // 2. ELEMENTOS DA INTERFACE
-  const pageHome = document.getElementById('pageHome');
-  const overlays = [document.getElementById('ckStep1'), document.getElementById('ckStep2'), document.getElementById('ckStep3')];
-  const loading = document.getElementById('ckLoading');
-  const pix = document.getElementById('ckPix');
+  function updateSlide() {
+    if(imgSingle) imgSingle.style.backgroundImage = `url('${slides[currentIndex]}')`;
+    if(imageCounter) imageCounter.textContent = `${currentIndex + 1}/${slides.length}`;
+  }
+
+  document.getElementById('prevSlide')?.addEventListener('click', () => {
+    currentIndex = (currentIndex === 0) ? slides.length - 1 : currentIndex - 1;
+    updateSlide();
+  });
+
+  document.getElementById('nextSlide')?.addEventListener('click', () => {
+    currentIndex = (currentIndex === slides.length - 1) ? 0 : currentIndex + 1;
+    updateSlide();
+  });
+
+  // ====== 2. LÓGICA DE PREÇO ======
+  const UNIT_PRICE = 0.03;
   const qtyInput = document.querySelector('.input-quantity');
   const priceDisplay = document.querySelector('.price-participate');
 
-  // Atualização de Preço em Tempo Real
-  function updatePriceDisplay() {
-      let q = parseInt(qtyInput.value) || 1;
-      if (q < 1) q = 1;
-      qtyInput.value = q;
-      if(priceDisplay) priceDisplay.innerText = (q * UNIT_PRICE).toFixed(2).replace('.', ',');
+  function updatePrice() {
+    let q = parseInt(qtyInput.value) || 1;
+    if (q < 1) q = 1;
+    qtyInput.value = q;
+    if(priceDisplay) priceDisplay.innerText = (q * UNIT_PRICE).toFixed(2).replace('.', ',');
   }
 
-  // Eventos de Input
   if(qtyInput) {
-      qtyInput.addEventListener('input', updatePriceDisplay);
-      document.querySelector('.js-qty-minus')?.addEventListener('click', () => { qtyInput.value--; updatePriceDisplay(); });
-      document.querySelector('.js-qty-plus')?.addEventListener('click', () => { qtyInput.value++; updatePriceDisplay(); });
+    qtyInput.addEventListener('input', updatePrice);
+    document.querySelector('.js-qty-minus')?.addEventListener('click', () => { qtyInput.value--; updatePrice(); });
+    document.querySelector('.js-qty-plus')?.addEventListener('click', () => { qtyInput.value++; updatePrice(); });
   }
 
-  // Seleção de Pacotes
   document.querySelectorAll('.select').forEach(sel => {
-      sel.addEventListener('click', () => {
-          const val = sel.querySelector('h3')?.innerText;
-          if(val) {
-              qtyInput.value = val;
-              updatePriceDisplay();
-          }
-      });
+    sel.addEventListener('click', () => {
+      const val = sel.querySelector('h3')?.innerText;
+      if(val) { qtyInput.value = val; updatePrice(); }
+    });
   });
 
-  // Helpers de Modal
+  // ====== 3. CHECKOUT E MODAIS ======
+  const overlays = [document.getElementById('ckStep1'), document.getElementById('ckStep2'), document.getElementById('ckStep3')];
+  const loading = document.getElementById('ckLoading');
+  const pix = document.getElementById('ckPix');
+  const pageHome = document.getElementById('pageHome');
+
   const open = (el) => { if(el){ el.classList.add('is-open'); document.body.classList.add('modal-travado'); } };
   const closeAll = () => { 
     overlays.forEach(el => el?.classList.remove('is-open')); 
     if(loading) loading.classList.remove('is-open');
-    if(pix) pix.classList.remove('is-open');
     document.body.classList.remove('modal-travado'); 
   };
 
-  // 3. FLUXO DOS BOTÕES
   document.querySelectorAll('.btn-add-to-cart').forEach(btn => {
     btn.onclick = (e) => {
       e.preventDefault();
-      const ckQty = document.getElementById('ckQty');
-      if(ckQty) ckQty.textContent = qtyInput.value;
+      document.getElementById('ckQty').textContent = qtyInput.value;
       open(overlays[0]);
     };
   });
 
+  document.querySelectorAll('[data-ck-close]').forEach(btn => btn.onclick = closeAll);
+
   document.getElementById('ckGoStep2').onclick = () => {
     const phone = document.getElementById('ckPhone').value;
-    if(!phone || phone.length < 8) return alert('Digite seu telefone corretamente');
+    if(!phone || phone.length < 8) return alert('Telefone inválido');
     document.getElementById('ckPhone2').value = phone;
     closeAll(); open(overlays[1]);
   };
@@ -636,24 +649,18 @@ document.addEventListener('DOMContentLoaded', function(){
     const p1 = document.getElementById('ckPhone2').value;
     const p2 = document.getElementById('ckPhoneConfirm').value;
     if(p1 !== p2) return alert('Telefones não conferem');
-    if(!name || name.length < 3) return alert('Digite seu nome completo');
+    if(!name) return alert('Nome obrigatório');
     
     document.getElementById('ckNameShow').textContent = name;
     document.getElementById('ckPhoneShow').textContent = p1;
     document.getElementById('ckQty3').textContent = qtyInput.value;
-    
     closeAll(); open(overlays[2]);
   };
 
-  document.querySelectorAll('[data-ck-close]').forEach(btn => btn.onclick = closeAll);
-
-  // 4. CHAMADA REAL DA API (O QUE FOI CONSERTADO)
+  // ====== 4. API PIX REAL (INTEGRAÇÃO) ======
   document.getElementById('ckCreatePayment').onclick = async function() {
     closeAll();
-    if(loading) {
-        loading.classList.add('is-open');
-        loading.style.display = 'block';
-    }
+    if(loading) { loading.classList.add('is-open'); loading.style.display = 'block'; }
     if(pageHome) pageHome.classList.add('is-hidden');
 
     const qty = parseInt(qtyInput.value);
@@ -672,25 +679,22 @@ document.addEventListener('DOMContentLoaded', function(){
       });
 
       const data = await res.json();
-      if(loading) {
-          loading.classList.remove('is-open');
-          loading.style.display = 'none';
-      }
+      if(loading) { loading.classList.remove('is-open'); loading.style.display = 'none'; }
 
       if (!res.ok) throw new Error(data.error || 'Erro na API');
 
-      // Preenche a tela final do PIX com dados reais
-      document.getElementById('pixCopyPaste').textContent = data.copiaecola;
+      // Preenche dados do PIX
+      document.getElementById('pixCopyPaste').textContent = data.copiaecola || "Erro: Código não gerado";
       document.getElementById('pixTotal').textContent = payload.amount.toString().replace('.', ',');
       document.getElementById('pixBuyer').textContent = payload.buyerName;
       
       const qrImg = document.getElementById('pixQrImg');
-      if(data.qrCodeBase64 && qrImg) qrImg.src = "data:image/png;base64," + data.qrCodeBase64;
-
-      if(pix) {
-          pix.classList.add('is-open');
-          pix.style.display = 'block';
+      if(data.qrCodeBase64 && qrImg) {
+          qrImg.src = "data:image/png;base64," + data.qrCodeBase64;
       }
+
+      if(pix) { pix.classList.add('is-open'); pix.style.display = 'block'; }
+      
     } catch (err) {
       if(loading) loading.classList.remove('is-open');
       if(pageHome) pageHome.classList.remove('is-hidden');
@@ -698,14 +702,13 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   };
 
-  // Botão Copiar
+  // Funções Extras
   document.getElementById('pixCopyBtn').onclick = function() {
     navigator.clipboard.writeText(document.getElementById('pixCopyPaste').textContent);
     this.innerText = "COPIADO!";
     setTimeout(() => this.innerText = "COPIAR", 2000);
   };
 
-  // QR Code Toggle
   document.getElementById('pixToggleBtn').onclick = function() {
       const qr = document.getElementById('pixQrWrap');
       if(qr.style.display === 'block') {
@@ -717,7 +720,7 @@ document.addEventListener('DOMContentLoaded', function(){
       }
   };
 
-  // Máscara de Telefone
+  // Máscara Telefone
   document.querySelectorAll('input[type="tel"]').forEach(input => {
       input.addEventListener('input', (e) => {
           let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
@@ -725,17 +728,33 @@ document.addEventListener('DOMContentLoaded', function(){
       });
   });
 
-  // Inicializa preço
-  updatePriceDisplay();
+  // Inicializar
+  updatePrice();
+  
+  // Timer Double Chance
+  const finalDate = new Date("2026-12-31T23:59:59");
+  const totalTime = finalDate - new Date("2026-01-01T00:00:00");
+  if (document.querySelector('.progress-bar-inner')) {
+      const timerEl = document.createElement('p');
+      timerEl.classList.add('timer');
+      document.querySelector('.progress-bar-double-chance').appendChild(timerEl);
+      document.querySelector('.progress-bar-double-chance').style.display = 'block';
+      setInterval(() => {
+          const remain = finalDate - new Date();
+          if (remain <= 0) { timerEl.innerText = 'FINALIZADO'; return; }
+          const h = Math.floor(remain/3600000).toString().padStart(2,'0');
+          const m = Math.floor((remain%3600000)/60000).toString().padStart(2,'0');
+          const s = Math.floor((remain%60000)/1000).toString().padStart(2,'0');
+          timerEl.innerText = `ENCERRA EM ${h}:${m}:${s}`;
+          document.querySelector('.progress-bar-inner').style.width = `${(1 - remain/totalTime)*100}%`;
+      }, 1000);
+  }
 });
 
-// Funções Globais para Caixas Surpresas
 window.csShowMore = function() {
     document.querySelectorAll('.cs-row.is-hidden').forEach(el => el.classList.remove('is-hidden'));
     document.getElementById('csMoreBtn').style.display = 'none';
 };
 </script>
-
 </body>
 </html>
-
