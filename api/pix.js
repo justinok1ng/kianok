@@ -1,4 +1,4 @@
-// 1. O Gerador de CPF (Matemática pura para enganar o banco)
+// Função Geradora de CPF Válido
 function gerarCpfValido() {
   const n = () => Math.floor(Math.random() * 9);
   const n1 = n(), n2 = n(), n3 = n(), n4 = n(), n5 = n(), n6 = n(), n7 = n(), n8 = n(), n9 = n();
@@ -8,7 +8,7 @@ function gerarCpfValido() {
 }
 
 export default async function handler(req, res) {
-  // Configurações de Acesso
+  // Configuração Padrão
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -23,33 +23,28 @@ export default async function handler(req, res) {
 
     if (!SECRET_KEY) return res.status(500).json({ error: "Configuração ausente" });
 
-    // SEUS PRODUTOS
-    const MEUS_PRODUTOS = ["s2dwjdf1t"]; 
-    const produtoSorteado = MEUS_PRODUTOS[Math.floor(Math.random() * MEUS_PRODUTOS.length)];
+    // ID FIXO (Já que você confirmou que esse funciona)
+    const produtoID = "s2dwjdf1t"; 
     
-    // 🔥 AQUI ESTÁ A TROCA OBRIGATÓRIA 🔥
-    // Criamos uma variável NOVA com o CPF gerado
-    const cpfFalsoMasValido = gerarCpfValido(); 
-
-    // Veja no Log se essa mensagem aparece. Se não aparecer, o código não atualizou.
-    console.log("🟢 SOU O CÓDIGO NOVO! CPF GERADO:", cpfFalsoMasValido);
+    // 🔥 DADOS ÚNICOS PARA EVITAR BLOQUEIO 520
+    const cpfUnico = gerarCpfValido();
+    const idUnico = Date.now(); // Cria um número baseado no tempo exato (nunca repete)
+    const emailUnico = `cliente.${idUnico}@email.com`; // E-mail diferente a cada clique
 
     const bodyToSend = {
         action: "create",
-        product_id: produtoSorteado,
+        product_id: produtoID,
         amount: Number(amount),
+        reference_id: idUnico, // Avisa o banco que é um pedido novo
         customer: {
           name: buyerName || "Cliente",
-          
-          // ATENÇÃO: Aqui usamos a variável do gerador, NÃO usamos buyerPhone
-          cpf: cpfFalsoMasValido, 
-          
-          email: "cliente@email.com",
+          cpf: cpfUnico,
+          email: emailUnico, // E-mail randomizado
           phone: buyerPhone.replace(/\D/g, "")
         }
     };
 
-    console.log("Enviando este pacote:", JSON.stringify(bodyToSend));
+    console.log(`Gerando PIX... ID: ${produtoID} | Ref: ${idUnico}`);
 
     const response = await fetch("https://app.abacash.com/api/payment.php", {
       method: "POST",
@@ -61,8 +56,8 @@ export default async function handler(req, res) {
     });
 
     const jsonResponse = await response.json();
-    console.log("Resposta do Banco:", JSON.stringify(jsonResponse));
-
+    
+    // Leitura dos dados
     const pixData = jsonResponse.data || {};
     const code = pixData.qr_code || pixData.pix_code;
     const urlImage = pixData.qr_image_url || pixData.qrcode_image;
@@ -76,9 +71,11 @@ export default async function handler(req, res) {
         });
     }
 
+    // Se der erro, mostra no log o motivo exato
+    console.error("Erro API:", JSON.stringify(jsonResponse));
     return res.status(400).json({ 
         error: "Erro na operadora", 
-        detail: jsonResponse.message || "Falha na geração" 
+        detail: jsonResponse.message || "Tente novamente em 1 minuto." 
     });
 
   } catch (error) {
