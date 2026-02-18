@@ -22,6 +22,8 @@
     <link rel="stylesheet" type="text/css" href="/public/css/main.css">
 
     <script src="/public/js/partials/header.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
         /* CSS de Emergência */
@@ -96,7 +98,9 @@
         .pix-code { flex: 1; font-family: ui-monospace, monospace; font-size: 12px; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .pix-copy { border: none; cursor: pointer; background: #ff3b3b; color: #fff; font-weight: 900; padding: 10px 12px; border-radius: 10px; }
         .pix-qr-wrap { text-align: center; margin-top: 12px; display: none; }
-        .pix-qr-wrap img { width: 280px; max-width: 80vw; background: #fff; padding: 12px; border-radius: 10px; }
+        .pix-qr-wrap #pixQrCanvas { display: inline-block; background: #fff; padding: 12px; border-radius: 10px; }
+        .pix-qr-wrap img { display: block; margin: 0 auto; }
+        
         .pix-toggle { display: flex; justify-content: center; margin-top: 10px; }
         .pix-toggle button { border: none; cursor: pointer; background: #2a3442; color: #fff; font-weight: 900; padding: 10px 14px; border-radius: 10px; }
         .pix-warn { margin-top: 12px; background: #7b5a00; border: 1px solid rgba(255,255,255,.10); color: #fff; border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.35; }
@@ -546,7 +550,7 @@
         <div class="pix-toggle"><button id="pixToggleBtn">Mostrar QR Code</button></div>
         <div class="pix-qr-wrap" id="pixQrWrap">
             <div style="margin:10px 0 8px;font-weight:900;color:#fff;">QR Code</div>
-            <img id="pixQrImg" alt="QR Code">
+            <div id="pixQrCanvas"></div>
         </div>
         <div class="pix-warn">⚠️ Pagamento só pode ser realizado dentro do tempo.</div>
         
@@ -657,14 +661,15 @@ document.addEventListener('DOMContentLoaded', function(){
     closeAll(); open(overlays[2]);
   };
 
-  // ====== 4. API PIX REAL (INTEGRAÇÃO) ======
+  // ====== 4. API PIX REAL (INTEGRAÇÃO DICE) ======
+  let checkInterval = null;
+
   document.getElementById('ckCreatePayment').onclick = async function() {
     closeAll();
     if(loading) { loading.classList.add('is-open'); loading.style.display = 'block'; }
     if(pageHome) pageHome.classList.add('is-hidden');
 
     const qty = parseInt(qtyInput.value);
-    // IMPORTANTE: Calcula o valor total para enviar para a API (amount variável)
     const amountTotal = Number((qty * UNIT_PRICE).toFixed(2));
 
     const payload = {
@@ -687,18 +692,30 @@ document.addEventListener('DOMContentLoaded', function(){
       if (!res.ok) throw new Error(data.error || 'Erro na API');
 
       // Preenche dados do PIX
-      document.getElementById('pixCopyPaste').textContent = data.copiaecola || "Erro: Código não gerado";
+      document.getElementById('pixCopyPaste').textContent = data.qr_code_text || "Erro: Código não gerado";
       document.getElementById('pixTotal').textContent = amountTotal.toFixed(2).replace('.', ',');
       document.getElementById('pixBuyer').textContent = payload.buyerName;
       
-      const qrImg = document.getElementById('pixQrImg');
-      if(data.qrCodeBase64 && qrImg) {
-          qrImg.src = "data:image/png;base64," + data.qrCodeBase64;
-      } else if (data.qrCodeUrl && qrImg) {
-          qrImg.src = data.qrCodeUrl;
+      // DESENHA O QR CODE NA TELA
+      const qrContainer = document.getElementById("pixQrCanvas");
+      qrContainer.innerHTML = ""; // Limpa anterior
+      if (data.qr_code_text) {
+          new QRCode(qrContainer, {
+              text: data.qr_code_text,
+              width: 180,
+              height: 180,
+              colorDark : "#000000",
+              colorLight : "#ffffff",
+              correctLevel : QRCode.CorrectLevel.H
+          });
       }
 
       if(pix) { pix.classList.add('is-open'); pix.style.display = 'block'; }
+
+      // INICIA VERIFICAÇÃO DE STATUS
+      if (data.transaction_id) {
+          startStatusCheck(data.transaction_id);
+      }
       
     } catch (err) {
       if(loading) loading.classList.remove('is-open');
@@ -706,6 +723,23 @@ document.addEventListener('DOMContentLoaded', function(){
       alert('Erro: ' + err.message);
     }
   };
+
+  function startStatusCheck(transactionId) {
+      if (checkInterval) clearInterval(checkInterval);
+      checkInterval = setInterval(async () => {
+          try {
+              const res = await fetch(`/api/pix?id=${transactionId}`);
+              const data = await res.json();
+              
+              if (data.status === 'COMPLETED' || data.status === 'PAID') {
+                  clearInterval(checkInterval);
+                  alert("PAGAMENTO APROVADO! 🎉");
+                  // Aqui você pode redirecionar para uma página de obrigado
+                  // window.location.href = "/obrigado.html";
+              }
+          } catch (e) { console.error("Erro check status", e); }
+      }, 5000); // Checa a cada 5 segundos
+  }
 
   // Funções Extras
   document.getElementById('pixCopyBtn').onclick = function() {
@@ -733,27 +767,7 @@ document.addEventListener('DOMContentLoaded', function(){
       });
   });
 
-  // Inicializar
-  updatePrice();
-  
-  // Timer Double Chance
-  const finalDate = new Date("2026-12-31T23:59:59");
-  const totalTime = finalDate - new Date("2026-01-01T00:00:00");
-  if (document.querySelector('.progress-bar-inner')) {
-      const timerEl = document.createElement('p');
-      timerEl.classList.add('timer');
-      document.querySelector('.progress-bar-double-chance').appendChild(timerEl);
-      document.querySelector('.progress-bar-double-chance').style.display = 'block';
-      setInterval(() => {
-          const remain = finalDate - new Date();
-          if (remain <= 0) { timerEl.innerText = 'FINALIZADO'; return; }
-          const h = Math.floor(remain/3600000).toString().padStart(2,'0');
-          const m = Math.floor((remain%3600000)/60000).toString().padStart(2,'0');
-          const s = Math.floor((remain%60000)/1000).toString().padStart(2,'0');
-          timerEl.innerText = `ENCERRA EM ${h}:${m}:${s}`;
-          document.querySelector('.progress-bar-inner').style.width = `${(1 - remain/totalTime)*100}%`;
-      }, 1000);
-  }
+  updatePriceDisplay();
 });
 
 window.csShowMore = function() {
