@@ -567,239 +567,108 @@
 </div>
 
 <script>
-// Lógica de Scripts Unificada (COM CARROSSEL FUNCIONANDO)
 document.addEventListener('DOMContentLoaded', function(){
-    // 1. CARROSSEL DE IMAGENS (Lógica Nova)
-    const slides = [
-        '/public/images/principal.jpg',
-        '/public/images/secund.jpg',
-        '/public/images/terci.jpg'
-    ];
-    let currentIndex = 0;
-    const imgSingle = document.getElementById('imgSingle');
-    const counter = document.getElementById('imageCounter');
+  // ====== CONFIG / PREÇO ======
+  function toNumberBR(text){ return parseFloat(String(text || '0').trim().replace(/\./g,'').replace(',','.')) || 0; }
+  const UNIT_PRICE = (() => {
+    const pv = document.querySelector('.price-value');
+    return toNumberBR(pv?.innerText || '0.03');
+  })();
 
-    function updateSlide() {
-        imgSingle.style.backgroundImage = `url('${slides[currentIndex]}')`;
-        counter.innerText = `${currentIndex + 1}/${slides.length}`;
-    }
+  // ====== ELEMENTOS ======
+  const pageHome = document.getElementById('pageHome');
+  const overlays = [document.getElementById('ckStep1'), document.getElementById('ckStep2'), document.getElementById('ckStep3')];
+  const loading = document.getElementById('ckLoading');
+  const pix = document.getElementById('ckPix');
+  const qtyInput = document.querySelector('.input-quantity');
 
-    document.getElementById('prevSlide').addEventListener('click', () => {
-        currentIndex = (currentIndex === 0) ? slides.length - 1 : currentIndex - 1;
-        updateSlide();
-    });
+  // Helpers
+  const open = (el) => { if(el){ el.classList.add('is-open'); document.body.classList.add('modal-travado'); } };
+  const closeAll = () => { 
+    overlays.forEach(el => el?.classList.remove('is-open')); 
+    loading?.classList.remove('is-open');
+    document.body.classList.remove('modal-travado'); 
+  };
 
-    document.getElementById('nextSlide').addEventListener('click', () => {
-        currentIndex = (currentIndex === slides.length - 1) ? 0 : currentIndex + 1;
-        updateSlide();
-    });
-
-    // 2. Timer Promoção
-    const finalDate = new Date("2026-12-31T23:59:59");
-    const totalTime = finalDate - new Date("2026-01-01T00:00:00");
-    if (document.querySelector('.progress-bar-inner')) {
-        const timerEl = document.createElement('p');
-        timerEl.classList.add('timer');
-        document.querySelector('.progress-bar-double-chance').appendChild(timerEl);
-        document.querySelector('.progress-bar-double-chance').style.display = 'block';
-        setInterval(() => {
-            const remain = finalDate - new Date();
-            if (remain <= 0) { timerEl.innerText = 'FINALIZADO'; return; }
-            const h = Math.floor(remain/3600000).toString().padStart(2,'0');
-            const m = Math.floor((remain%3600000)/60000).toString().padStart(2,'0');
-            const s = Math.floor((remain%60000)/1000).toString().padStart(2,'0');
-            timerEl.innerText = `ENCERRA EM ${h}:${m}:${s}`;
-            document.querySelector('.progress-bar-inner').style.width = `${(1 - remain/totalTime)*100}%`;
-        }, 1000);
-    }
-
-    // 3. Caixas Surpresas
-    window.csShowMore = function(){
-        const box = document.getElementById('csBox');
-        if(!box) return;
-        box.querySelectorAll('.cs-row.is-hidden').forEach(el => el.classList.remove('is-hidden'));
-        document.getElementById('csMoreBtn').style.display = 'none';
+  // Botão Quero Participar
+  document.querySelectorAll('.btn-add-to-cart').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      document.getElementById('ckQty').textContent = qtyInput.value;
+      open(overlays[0]);
     };
+  });
 
-    // 4. Modais Prêmios
-    const prizeBtn = document.getElementById('prize-open');
-    const modalPrize = document.getElementById('modal-prizes');
-    if(prizeBtn && modalPrize){
-        prizeBtn.onclick = () => modalPrize.style.display = 'flex';
-        modalPrize.querySelector('.bi-x-lg').onclick = () => modalPrize.style.display = 'none';
-    }
+  // Navegação do Checkout
+  document.getElementById('ckGoStep2').onclick = () => {
+    if(!document.getElementById('ckPhone').value) return alert('Digite seu telefone');
+    document.getElementById('ckPhone2').value = document.getElementById('ckPhone').value;
+    closeAll(); open(overlays[1]);
+  };
 
-    // 5. Quantidade e Checkout
-    const inputQty = document.querySelector('.input-quantity');
-    const priceEl = document.querySelector('.price-participate');
-    const unitPrice = parseFloat(document.querySelector('.price-value')?.innerText.replace(',','.') || 0.03);
+  document.getElementById('ckGoStep3').onclick = () => {
+    const name = document.getElementById('ckName').value;
+    const p1 = document.getElementById('ckPhone2').value;
+    const p2 = document.getElementById('ckPhoneConfirm').value;
+    if(p1 !== p2) return alert('Telefones não conferem');
+    if(!name) return alert('Digite seu nome');
+    document.getElementById('ckNameShow').textContent = name;
+    document.getElementById('ckPhoneShow').textContent = p1;
+    closeAll(); open(overlays[2]);
+  };
 
-    function updatePrice() {
-        let q = parseInt(inputQty.value) || 1;
-        if(q<1) q=1; inputQty.value = q;
-        priceEl.innerText = (q * unitPrice).toFixed(2).replace('.',',');
-    }
+  // Botões de fechar
+  document.querySelectorAll('[data-ck-close]').forEach(btn => btn.onclick = closeAll);
 
-    document.querySelectorAll('.select').forEach(sel => {
-        sel.onclick = () => {
-            inputQty.value = parseInt(sel.querySelector('h3').innerText);
-            updatePrice();
-        }
-    });
-    
-    document.querySelectorAll('.spins-content').forEach(spin => {
-        spin.onclick = () => {
-            const val = spin.querySelector('[class^="spin-value"]');
-            if(val) {
-                inputQty.value = parseInt(val.innerText);
-                updatePrice();
-                document.querySelector('.btn-add-to-cart').click();
-            }
-        }
-    });
-
-    document.querySelector('.js-qty-minus')?.addEventListener('click', ()=>{ inputQty.value--; updatePrice(); });
-    document.querySelector('.js-qty-plus')?.addEventListener('click', ()=>{ inputQty.value++; updatePrice(); });
-    inputQty?.addEventListener('input', updatePrice);
-    updatePrice();
-
-    // 6. Fluxo Checkout
-    const step1 = document.getElementById('ckStep1');
-    const step2 = document.getElementById('ckStep2');
-    const step3 = document.getElementById('ckStep3');
-    const loading = document.getElementById('ckLoading');
-    const pix = document.getElementById('ckPix');
-    const home = document.getElementById('pageHome');
-
-    const open = (el) => { el.classList.add('is-open'); document.body.classList.add('modal-travado'); };
-    const closeAll = () => { 
-        [step1,step2,step3].forEach(el => el.classList.remove('is-open')); 
-        document.body.classList.remove('modal-travado'); 
-    };
-
-    document.querySelector('.btn-add-to-cart').onclick = (e) => {
-        e.preventDefault();
-        document.getElementById('ckQty').innerText = inputQty.value;
-        open(step1);
-    };
-
-    document.querySelectorAll('[data-ck-close]').forEach(b => b.onclick = closeAll);
-
-    document.getElementById('ckGoStep2').onclick = () => {
-        const ph = document.getElementById('ckPhone').value;
-        if(ph.length < 8) return alert('Telefone inválido');
-        document.getElementById('ckPhone2').value = ph;
-        document.getElementById('ckQty2').innerText = inputQty.value;
-        closeAll(); open(step2);
-    };
-
-    document.getElementById('ckBackTo1').onclick = () => { closeAll(); open(step1); };
-
-    document.getElementById('ckGoStep3').onclick = () => {
-        const p1 = document.getElementById('ckPhone2').value;
-        const p2 = document.getElementById('ckPhoneConfirm').value;
-        const nm = document.getElementById('ckName').value;
-        if(p1!==p2) return alert('Telefones não conferem');
-        if(!nm) return alert('Digite seu nome');
-        document.getElementById('ckNameShow').innerText = nm;
-        document.getElementById('ckPhoneShow').innerText = p1;
-        document.getElementById('ckQty3').innerText = inputQty.value;
-        closeAll(); open(step3);
-    };
-
-    document.getElementById('ckChangeAccount').onclick = () => { closeAll(); open(step2); };
-
-    
-
-ddocument.getElementById('ckCreatePayment').onclick = async () => {
-    // Fecha modais e trava a tela no loading
+  // ====== CHAMADA REAL DA API ABACASH ======
+  document.getElementById('ckCreatePayment').onclick = async function() {
     closeAll();
     loading.classList.add('is-open');
-    home.classList.add('is-hidden');
+    pageHome.classList.add('is-hidden');
+
+    const qty = parseInt(qtyInput.value);
+    const payload = {
+      amount: +(qty * UNIT_PRICE).toFixed(2),
+      buyerName: document.getElementById('ckName').value,
+      buyerPhone: document.getElementById('ckPhone2').value,
+      qty: qty
+    };
 
     try {
-        const qty = parseInt(inputQty.value, 10) || 1;
-        const totalNumber = +(qty * unitPrice).toFixed(2);
+      const res = await fetch('/api/pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-        // Chamada real para a sua API na Vercel
-        const res = await fetch('/api/pix', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                amount: totalNumber,
-                buyerName: document.getElementById('ckName').value,
-                buyerPhone: document.getElementById('ckPhone2').value,
-                product: "ROLETAS PREMIADAS",
-                qty: qty
-            })
-        });
+      const data = await res.json();
+      loading.classList.remove('is-open');
 
-        const data = await res.json();
-        loading.classList.remove('is-open');
+      if (!res.ok) throw new Error(data.error || 'Erro na API');
 
-        if (!res.ok) throw new Error(data?.error || 'Falha ao gerar Pix');
+      // Preenche a tela de PIX
+      document.getElementById('pixCopyPaste').textContent = data.copiaecola;
+      document.getElementById('pixTotal').textContent = payload.amount.toString().replace('.', ',');
+      document.getElementById('pixBuyer').textContent = payload.buyerName;
+      if(data.qrCodeBase64) document.getElementById('pixQrImg').src = "data:image/png;base64," + data.qrCodeBase64;
 
-        // Preenche a tela de PIX com o retorno da API Abacash
-        document.getElementById('pixCopyPaste').innerText = data.copiaecola || '—';
-        document.getElementById('pixTotal').innerText = totalNumber.toFixed(2).replace('.', ',');
-        document.getElementById('pixBuyer').innerText = document.getElementById('ckName').value;
-        document.getElementById('pixProductCard').innerText = "ROLETAS PREMIADAS";
-
-        // QR Code
-        const qrImg = document.getElementById('pixQrImg');
-        if (data.qrCodeBase64) {
-            qrImg.src = `data:image/png;base64,${data.qrCodeBase64}`;
-        } else if (data.qrCodeUrl) {
-            qrImg.src = data.qrCodeUrl;
-        }
-
-        // Timer de 10 minutos (600s)
-        let t = 600;
-        const tEl = document.getElementById('pixTimer');
-        const timerId = setInterval(() => {
-            if (t > 0) {
-                t--;
-                tEl.innerText = `${Math.floor(t / 60).toString().padStart(2, '0')}:${(t % 60).toString().padStart(2, '0')}`;
-            } else {
-                clearInterval(timerId);
-                tEl.innerText = "EXPIRADO";
-            }
-        }, 1000);
-
-        pix.classList.add('is-open');
-
+      pix.classList.add('is-open');
     } catch (err) {
-        loading.classList.remove('is-open');
-        home.classList.remove('is-hidden');
-        alert('Erro ao processar: ' + err.message);
+      loading.classList.remove('is-open');
+      pageHome.classList.remove('is-hidden');
+      alert('Erro: ' + err.message);
     }
-};
+  };
 
-
-
-
-    // Copiar e Toggle
-    document.getElementById('pixCopyBtn').onclick = function(){
-        navigator.clipboard.writeText(document.getElementById('pixCopyPaste').innerText);
-        this.innerText = "COPIADO!";
-        setTimeout(() => this.innerText = "COPIAR", 1500);
-    };
-    document.getElementById('pixToggleBtn').onclick = function(){
-        const qr = document.getElementById('pixQrWrap');
-        const show = qr.style.display === 'block';
-        qr.style.display = show ? 'none' : 'block';
-        this.innerText = show ? "Mostrar QR Code" : "Ocultar QR Code";
-    };
-
-    // Mascara Telefone
-    document.querySelectorAll('input[type="tel"]').forEach(i => {
-        i.oninput = (e) => {
-            let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
-            e.target.value = !x[2] ? x[1] : `(${x[1]}) ${x[2]}${x[3]?'-'+x[3]:''}`;
-        };
-    });
+  // Copiar PIX
+  document.getElementById('pixCopyBtn').onclick = function() {
+    navigator.clipboard.writeText(document.getElementById('pixCopyPaste').textContent);
+    this.innerText = "COPIADO!";
+    setTimeout(() => this.innerText = "COPIAR", 2000);
+  };
 });
 </script>
 
 </body>
 </html>
+
