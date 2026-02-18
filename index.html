@@ -566,43 +566,42 @@
   </div>
 </div>
 
-<script>
 document.addEventListener('DOMContentLoaded', function(){
-  // ====== CONFIG / PREÇO ======
+  // 1. CONFIGURAÇÃO DE PREÇO
   function toNumberBR(text){ return parseFloat(String(text || '0').trim().replace(/\./g,'').replace(',','.')) || 0; }
   const UNIT_PRICE = (() => {
     const pv = document.querySelector('.price-value');
     return toNumberBR(pv?.innerText || '0.03');
   })();
 
-  // ====== ELEMENTOS ======
+  // 2. ELEMENTOS DA INTERFACE
   const pageHome = document.getElementById('pageHome');
   const overlays = [document.getElementById('ckStep1'), document.getElementById('ckStep2'), document.getElementById('ckStep3')];
   const loading = document.getElementById('ckLoading');
   const pix = document.getElementById('ckPix');
   const qtyInput = document.querySelector('.input-quantity');
 
-  // Helpers
   const open = (el) => { if(el){ el.classList.add('is-open'); document.body.classList.add('modal-travado'); } };
   const closeAll = () => { 
     overlays.forEach(el => el?.classList.remove('is-open')); 
-    loading?.classList.remove('is-open');
+    if(loading) loading.classList.remove('is-open');
     document.body.classList.remove('modal-travado'); 
   };
 
-  // Botão Quero Participar
+  // 3. FLUXO DOS BOTÕES
   document.querySelectorAll('.btn-add-to-cart').forEach(btn => {
     btn.onclick = (e) => {
       e.preventDefault();
-      document.getElementById('ckQty').textContent = qtyInput.value;
+      const ckQty = document.getElementById('ckQty');
+      if(ckQty) ckQty.textContent = qtyInput.value;
       open(overlays[0]);
     };
   });
 
-  // Navegação do Checkout
   document.getElementById('ckGoStep2').onclick = () => {
-    if(!document.getElementById('ckPhone').value) return alert('Digite seu telefone');
-    document.getElementById('ckPhone2').value = document.getElementById('ckPhone').value;
+    const phone = document.getElementById('ckPhone').value;
+    if(!phone) return alert('Digite seu telefone');
+    document.getElementById('ckPhone2').value = phone;
     closeAll(); open(overlays[1]);
   };
 
@@ -617,14 +616,13 @@ document.addEventListener('DOMContentLoaded', function(){
     closeAll(); open(overlays[2]);
   };
 
-  // Botões de fechar
   document.querySelectorAll('[data-ck-close]').forEach(btn => btn.onclick = closeAll);
 
-  // ====== CHAMADA REAL DA API ABACASH ======
+  // 4. CHAMADA REAL DA API (O QUE FOI CONSERTADO)
   document.getElementById('ckCreatePayment').onclick = async function() {
     closeAll();
-    loading.classList.add('is-open');
-    pageHome.classList.add('is-hidden');
+    if(loading) loading.classList.add('is-open');
+    if(pageHome) pageHome.classList.add('is-hidden');
 
     const qty = parseInt(qtyInput.value);
     const payload = {
@@ -642,33 +640,35 @@ document.addEventListener('DOMContentLoaded', function(){
       });
 
       const data = await res.json();
-      loading.classList.remove('is-open');
+      if(loading) loading.classList.remove('is-open');
 
       if (!res.ok) throw new Error(data.error || 'Erro na API');
 
-      // Preenche a tela de PIX
+      // Preenche a tela final do PIX com dados reais
       document.getElementById('pixCopyPaste').textContent = data.copiaecola;
       document.getElementById('pixTotal').textContent = payload.amount.toString().replace('.', ',');
       document.getElementById('pixBuyer').textContent = payload.buyerName;
-      if(data.qrCodeBase64) document.getElementById('pixQrImg').src = "data:image/png;base64," + data.qrCodeBase64;
+      
+      const qrImg = document.getElementById('pixQrImg');
+      if(data.qrCodeBase64 && qrImg) qrImg.src = "data:image/png;base64," + data.qrCodeBase64;
 
-      pix.classList.add('is-open');
+      if(pix) pix.classList.add('is-open');
     } catch (err) {
-      loading.classList.remove('is-open');
-      pageHome.classList.remove('is-hidden');
+      if(loading) loading.classList.remove('is-open');
+      if(pageHome) pageHome.classList.remove('is-hidden');
       alert('Erro: ' + err.message);
     }
   };
 
-  // Copiar PIX
+  // Botão Copiar
   document.getElementById('pixCopyBtn').onclick = function() {
     navigator.clipboard.writeText(document.getElementById('pixCopyPaste').textContent);
     this.innerText = "COPIADO!";
     setTimeout(() => this.innerText = "COPIAR", 2000);
   };
 });
-</script>
 
 </body>
 </html>
+
 
