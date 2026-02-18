@@ -276,8 +276,6 @@
                         <p>Restam apenas <span class="rest-numbers">0</span> Títulos.</p>
                     </div>
                 
-                    <script src="/public/js/partials/automatic.js"></script>
-
                     <div class="description-single" style="background-color:#1f2832; border:none;">
                         <button class="btn-Description" style="width:100%; background:transparent; border:none; color:#e5e7eb; font-size:14px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px 0; cursor:pointer;">
                             <i class="bi bi-plus-square" style="font-size:14px;"></i> Descrição/Regulamento
@@ -425,8 +423,6 @@
     </section>
 </div>
 
-<script src="/public/js/pages/single.js"></script>
-
 <div id="ckStep1" class="ck-overlay" aria-hidden="true">
   <div class="ck-card" role="dialog" aria-modal="true" aria-label="Checkout">
     <div class="ck-header">
@@ -479,13 +475,13 @@
       </div>
       <div class="ck-label">Informe seu telefone *</div>
       <div class="ck-row">
-         <div class="ck-country"><img class="ck-flag" src="https://flagcdn.com/w20/br.png" alt="BR"></div>
-         <input id="ckPhone2" class="ck-input" type="tel" inputmode="numeric" placeholder="(DDD) 9XXXX-XXXX">
+          <div class="ck-country"><img class="ck-flag" src="https://flagcdn.com/w20/br.png" alt="BR"></div>
+          <input id="ckPhone2" class="ck-input" type="tel" inputmode="numeric" placeholder="(DDD) 9XXXX-XXXX">
       </div>
       <div class="ck-label">Confirme o telefone *</div>
       <div class="ck-row">
-         <div class="ck-country"><img class="ck-flag" src="https://flagcdn.com/w20/br.png" alt="BR"></div>
-         <input id="ckPhoneConfirm" class="ck-input" type="tel" inputmode="numeric" placeholder="Repita o telefone">
+          <div class="ck-country"><img class="ck-flag" src="https://flagcdn.com/w20/br.png" alt="BR"></div>
+          <input id="ckPhoneConfirm" class="ck-input" type="tel" inputmode="numeric" placeholder="Repita o telefone">
       </div>
       <div class="ck-label">Nome Completo *</div>
       <div class="ck-row">
@@ -555,7 +551,7 @@
         <div class="pix-warn">⚠️ Pagamento só pode ser realizado dentro do tempo.</div>
         
         <div style="margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:#1f2a38;">
-          <div style="font-weight:900;color:#fff;" id="pixProductCard"></div>
+          <div style="font-weight:900;color:#fff;" id="pixProductCard">ROLETAS PREMIADAS</div>
           <div style="margin-top:8px;font-size:13px;">
             <div><b>Comprador:</b> <span id="pixBuyer">—</span></div>
             <div><b>Total:</b> R$ <span id="pixTotal">—</span></div>
@@ -566,6 +562,7 @@
   </div>
 </div>
 
+<script>
 document.addEventListener('DOMContentLoaded', function(){
   // 1. CONFIGURAÇÃO DE PREÇO
   function toNumberBR(text){ return parseFloat(String(text || '0').trim().replace(/\./g,'').replace(',','.')) || 0; }
@@ -580,11 +577,40 @@ document.addEventListener('DOMContentLoaded', function(){
   const loading = document.getElementById('ckLoading');
   const pix = document.getElementById('ckPix');
   const qtyInput = document.querySelector('.input-quantity');
+  const priceDisplay = document.querySelector('.price-participate');
 
+  // Atualização de Preço em Tempo Real
+  function updatePriceDisplay() {
+      let q = parseInt(qtyInput.value) || 1;
+      if (q < 1) q = 1;
+      qtyInput.value = q;
+      if(priceDisplay) priceDisplay.innerText = (q * UNIT_PRICE).toFixed(2).replace('.', ',');
+  }
+
+  // Eventos de Input
+  if(qtyInput) {
+      qtyInput.addEventListener('input', updatePriceDisplay);
+      document.querySelector('.js-qty-minus')?.addEventListener('click', () => { qtyInput.value--; updatePriceDisplay(); });
+      document.querySelector('.js-qty-plus')?.addEventListener('click', () => { qtyInput.value++; updatePriceDisplay(); });
+  }
+
+  // Seleção de Pacotes
+  document.querySelectorAll('.select').forEach(sel => {
+      sel.addEventListener('click', () => {
+          const val = sel.querySelector('h3')?.innerText;
+          if(val) {
+              qtyInput.value = val;
+              updatePriceDisplay();
+          }
+      });
+  });
+
+  // Helpers de Modal
   const open = (el) => { if(el){ el.classList.add('is-open'); document.body.classList.add('modal-travado'); } };
   const closeAll = () => { 
     overlays.forEach(el => el?.classList.remove('is-open')); 
     if(loading) loading.classList.remove('is-open');
+    if(pix) pix.classList.remove('is-open');
     document.body.classList.remove('modal-travado'); 
   };
 
@@ -600,7 +626,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   document.getElementById('ckGoStep2').onclick = () => {
     const phone = document.getElementById('ckPhone').value;
-    if(!phone) return alert('Digite seu telefone');
+    if(!phone || phone.length < 8) return alert('Digite seu telefone corretamente');
     document.getElementById('ckPhone2').value = phone;
     closeAll(); open(overlays[1]);
   };
@@ -610,9 +636,12 @@ document.addEventListener('DOMContentLoaded', function(){
     const p1 = document.getElementById('ckPhone2').value;
     const p2 = document.getElementById('ckPhoneConfirm').value;
     if(p1 !== p2) return alert('Telefones não conferem');
-    if(!name) return alert('Digite seu nome');
+    if(!name || name.length < 3) return alert('Digite seu nome completo');
+    
     document.getElementById('ckNameShow').textContent = name;
     document.getElementById('ckPhoneShow').textContent = p1;
+    document.getElementById('ckQty3').textContent = qtyInput.value;
+    
     closeAll(); open(overlays[2]);
   };
 
@@ -621,7 +650,10 @@ document.addEventListener('DOMContentLoaded', function(){
   // 4. CHAMADA REAL DA API (O QUE FOI CONSERTADO)
   document.getElementById('ckCreatePayment').onclick = async function() {
     closeAll();
-    if(loading) loading.classList.add('is-open');
+    if(loading) {
+        loading.classList.add('is-open');
+        loading.style.display = 'block';
+    }
     if(pageHome) pageHome.classList.add('is-hidden');
 
     const qty = parseInt(qtyInput.value);
@@ -640,7 +672,10 @@ document.addEventListener('DOMContentLoaded', function(){
       });
 
       const data = await res.json();
-      if(loading) loading.classList.remove('is-open');
+      if(loading) {
+          loading.classList.remove('is-open');
+          loading.style.display = 'none';
+      }
 
       if (!res.ok) throw new Error(data.error || 'Erro na API');
 
@@ -652,7 +687,10 @@ document.addEventListener('DOMContentLoaded', function(){
       const qrImg = document.getElementById('pixQrImg');
       if(data.qrCodeBase64 && qrImg) qrImg.src = "data:image/png;base64," + data.qrCodeBase64;
 
-      if(pix) pix.classList.add('is-open');
+      if(pix) {
+          pix.classList.add('is-open');
+          pix.style.display = 'block';
+      }
     } catch (err) {
       if(loading) loading.classList.remove('is-open');
       if(pageHome) pageHome.classList.remove('is-hidden');
@@ -666,9 +704,37 @@ document.addEventListener('DOMContentLoaded', function(){
     this.innerText = "COPIADO!";
     setTimeout(() => this.innerText = "COPIAR", 2000);
   };
+
+  // QR Code Toggle
+  document.getElementById('pixToggleBtn').onclick = function() {
+      const qr = document.getElementById('pixQrWrap');
+      if(qr.style.display === 'block') {
+          qr.style.display = 'none';
+          this.innerText = "Mostrar QR Code";
+      } else {
+          qr.style.display = 'block';
+          this.innerText = "Ocultar QR Code";
+      }
+  };
+
+  // Máscara de Telefone
+  document.querySelectorAll('input[type="tel"]').forEach(input => {
+      input.addEventListener('input', (e) => {
+          let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,5})(\d{0,4})/);
+          e.target.value = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+      });
+  });
+
+  // Inicializa preço
+  updatePriceDisplay();
 });
+
+// Funções Globais para Caixas Surpresas
+window.csShowMore = function() {
+    document.querySelectorAll('.cs-row.is-hidden').forEach(el => el.classList.remove('is-hidden'));
+    document.getElementById('csMoreBtn').style.display = 'none';
+};
+</script>
 
 </body>
 </html>
-
-
